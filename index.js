@@ -1,10 +1,5 @@
-const fs = require("fs");
-const axios = require("axios");
 const colors = require("colors");
-const readline = require("readline");
-const { DateTime } = require("luxon");
-const { HttpsProxyAgent } = require("https-proxy-agent");
-const { questions, questionTypes, ToolName, METHOD } = require("./config");
+const { questions, ToolName, METHOD } = require("./config");
 
 const BaseRoot = require("./ultils");
 
@@ -12,11 +7,15 @@ class Tools extends BaseRoot {
   constructor() {
     super();
     this.toolsName = ToolName || "";
-    this.version = "1.0";
+    this.version = "0.1";
     this.waitingTime = 0;
     this.userInfo = null;
+    this.quests = [];
     this.questionStatuses = {
       isClaimDaily: false,
+    };
+    this.delayTime = {
+      dailyClaim: null,
     };
   }
 
@@ -31,10 +30,17 @@ class Tools extends BaseRoot {
   processAccount = async (queryId, dataUser) => {
     this.log(colors.yellow(`====== [Process Account] ======`));
     const token = await this.login(queryId);
+    await this.sleep(1000);
     if (token) {
       // Logic here
-      await this.dailyCheckInClaim();
-      await this.farmingClaim();
+      const addional = {
+        Authorization: this.userInfo.token,
+      };
+      await this.buildHeader(addional);
+      await this.sleep(1000);
+      await this.dailyCheckInClaim(queryId, dataUser, token);
+      // await this.sleep(1000);
+      // await this.farmingClaim(queryId, dataUser, token);
       if (this.questionStatuses.isDoTask) {
         await this.resolveTask(queryId, dataUser, token);
       }
@@ -50,9 +56,9 @@ class Tools extends BaseRoot {
     }
   };
 
-  login = async () => {
-    console.log(colors.gray(`====== [Login] ======`));
-    const header = this.buildHeaderPinGo();
+  login = async (queryId) => {
+    this.log(colors.yellow(`====== [Login] ======`));
+    const header = this.buildHeaderTools();
     const request = {
       Authorization: queryId,
     };
@@ -69,7 +75,7 @@ class Tools extends BaseRoot {
         if (response.data.data) {
           this.userInfo = response.data.data;
         }
-        return response.data.user;
+        return response.data.data;
       } else {
         this.log(colors.red(`Fail to login Pin Go!`));
       }
@@ -81,7 +87,44 @@ class Tools extends BaseRoot {
 
   dailyCheckInClaim = async (queryId, dataUser, token) => {
     this.log(colors.yellow(`====== [Daily Checkin Claim] ======`));
-    const header = this.getHeader();
+    await this.getListQuest();
+    await this.sleep(1000);
+    const header = await this.getHeader();
+    if (!this.quests.length) {
+      this.log(colors.red(`Not found any quest!`));
+    }
+    if (this.delayTime.dailyClaim > new Date()) {
+      this.log(colors.red(`Not time to daily claim yet.`));
+    }
+    const checkIn = this.quests.find(
+      (q) => q.title === "Check-in" && q.id === 5
+    );
+    if (checkIn) {
+      const request = { questsId: checkIn.id, checkIn: true };
+      try {
+        const response = await this.callApi(
+          METHOD.POST,
+          `https://pingo.work/api/punny/quests/verify`,
+          request,
+          header
+        );
+        if (response && response.data.code === 200) {
+          this.log(colors.green(`Claim daily quest successfully!`));
+          if (
+            !this.delayTime.dailyClaim ||
+            this.delayTime.dailyClaim < new Date()
+          ) {
+            this.delayTime.dailyClaim = this.addHoursToDatetime(new Date(), 24);
+          }
+        } else {
+          this.log(colors.red(`Fail to claim daily quest!`));
+        }
+      } catch (error) {
+        this.log(colors.red(`Fail to claim daily quest!`));
+      }
+    } else {
+      this.log(colors.red(`Not found quest in list!`));
+    }
   };
 
   watchAds = async (queryId, dataUser, token) => {
@@ -111,6 +154,28 @@ class Tools extends BaseRoot {
     const header = this.getHeader();
   };
 
+  getListQuest = async () => {
+    const header = await this.getHeader({}, ["Content-Type"]);
+    try {
+      const response = await this.callApi(
+        METHOD.GET,
+        `https://pingo.work/api/punny/quests/list`,
+        null,
+        header
+      );
+      if (response && response.data.code === 200) {
+        this.log(colors.green(`Get list quest successfully!`));
+        if (response.data.data) {
+          this.quests = response.data.data;
+        }
+      } else {
+        this.log(colors.red(`Fail to get list quest!`));
+      }
+    } catch (error) {
+      this.log(colors.red(`Fail to get list quest!`));
+    }
+  };
+
   buildHeaderTools = () => {
     const excludeKey = ["Accept", "Origin", "Referer"];
     const addional = {
@@ -128,12 +193,7 @@ class Tools extends BaseRoot {
     await this.sleep(1000);
     const data = this.getDataFile();
 
-    if (
-      !this.questionStatuses.isPlayGame &&
-      !this.questionStatuses.isWatchAds &&
-      !this.questionStatuses.isDoTask &&
-      !this.questionStatuses.isConnectWallet
-    ) {
+    if (!this.questionStatuses.isClaimDaily) {
       return;
     }
 

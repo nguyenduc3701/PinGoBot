@@ -2,17 +2,7 @@ const fs = require("fs");
 const axios = require("axios");
 const colors = require("colors");
 const readline = require("readline");
-const { DateTime } = require("luxon");
-const { HttpsProxyAgent } = require("https-proxy-agent");
 const figlet = require("figlet");
-
-const METHOD = {
-  GET: "get",
-  POST: "post",
-  PUT: "put",
-  PATCH: "patch",
-  DELETE: "delete",
-};
 
 class BaseRoot {
   constructor() {
@@ -125,6 +115,12 @@ class BaseRoot {
     });
   }
 
+  addHoursToDatetime = (dateTime, hour) => {
+    const date = new Date(dateTime);
+    date.setTime(date.getTime() + hour * 60 * 60 * 1000);
+    return date;
+  };
+
   addSecondsToDatetime = (dateTime, seconds) => {
     const date = new Date(dateTime);
     date.setTime(date.getTime() + seconds * 1000);
@@ -180,8 +176,13 @@ class BaseRoot {
 
   async countdown(seconds) {
     for (let i = seconds; i >= 0; i--) {
+      const timestamp = new Date().toLocaleTimeString();
       readline.cursorTo(process.stdout, 0);
-      process.stdout.write(`===== Wait ${i} second to continue =====`);
+      process.stdout.write(
+        `${colors.blue(`\n[${timestamp}] [*]`)} ${colors.white(
+          `===== Wait ${i} second to continue =====`
+        )}`
+      );
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
   }
