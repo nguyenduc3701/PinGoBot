@@ -69,7 +69,6 @@ class Tools extends BaseRoot {
         request,
         header
       );
-
       if (response && response.data.code === 200) {
         this.log(colors.green(`\Login Pin Go Succesfully!`));
         if (response.data.data) {
@@ -89,7 +88,10 @@ class Tools extends BaseRoot {
     this.log(colors.yellow(`====== [Daily Checkin Claim] ======`));
     await this.getListQuest();
     await this.sleep(1000);
-    const header = await this.getHeader();
+    const header = await this.getHeader(
+      { "Content-Length": 14, Accept: "application/json, text/plain, */*" },
+      ["Accept"]
+    );
     if (!this.quests.length) {
       this.log(colors.red(`Not found any quest!`));
     }
