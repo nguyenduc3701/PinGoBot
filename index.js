@@ -89,14 +89,16 @@ class Tools extends BaseRoot {
     await this.getListQuest();
     await this.sleep(1000);
     const header = await this.getHeader(
-      { "Content-Length": 14, Accept: "application/json, text/plain, */*" },
+      { Accept: "application/json, text/plain, */*" },
       ["Accept"]
     );
     if (!this.quests.length) {
       this.log(colors.red(`Not found any quest!`));
+      return;
     }
     if (this.delayTime.dailyClaim > new Date()) {
       this.log(colors.red(`Not time to daily claim yet.`));
+      return;
     }
     const checkIn = this.quests.find(
       (q) => q.title === "Check-in" && q.id === 5
