@@ -1,5 +1,6 @@
 const colors = require("colors");
 const { questions, ToolName, METHOD } = require("./config");
+const fs = require("fs");
 
 const BaseRoot = require("./ultils");
 
@@ -193,10 +194,20 @@ class Tools extends BaseRoot {
   async main() {
     this.renderFiglet(this.toolsName, this.version);
     await this.sleep(1000);
-    await this.renderQuestions();
+    if (!fs.existsSync("auto_run.txt")) {
+      await this.renderQuestions();
+    } else {
+      const autoRunStatuses = await this.updateQuestionStatuses(
+        this.questionStatuses
+      );
+      this.questionStatuses = autoRunStatuses;
+      await this.sleep(1000);
+      try {
+        fs.unlinkSync("auto_run.txt");
+      } catch (err) {}
+    }
     await this.sleep(1000);
     const data = this.getDataFile();
-
     if (!this.questionStatuses.isClaimDaily) {
       return;
     }

@@ -26,6 +26,33 @@ class BaseRoot {
     };
   }
 
+  getAutoRunFile = () => {
+    this.log(colors.bgCyan("Start by AutoGetQueryIds Tool"));
+    console.log("\n");
+    console.log("\n");
+    const data = fs
+      .readFileSync("auto_run.txt", "utf8")
+      .replace(/\r/g, "")
+      .split("\n")
+      .filter(Boolean);
+    return data;
+  };
+
+  updateQuestionStatuses = async (obj) => {
+    const arr = await this.getAutoRunFile();
+    if (!arr || !arr.length) {
+      return obj;
+    }
+    const wrkObj = { ...obj };
+    arr.forEach((item) => {
+      const [key, value] = item.split("=");
+      if (value === "true" && wrkObj.hasOwnProperty(key)) {
+        wrkObj[key] = true;
+      }
+    });
+    return wrkObj;
+  };
+
   getHeader = async (addional = {}, excludeKey = []) => {
     if (excludeKey.length || (addional && Object.keys(addional).length)) {
       return this.buildHeader(addional, excludeKey);
